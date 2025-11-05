@@ -1,0 +1,67 @@
+.TH simple_shell 1 "November 2025" "Holberton School" "User Commands"
+.SH NAME
+simple_shell \- a simple UNIX command interpreter
+
+.SH SYNOPSIS
+.B ./hsh
+.RI [command_file]
+.br
+Or run interactively and enter commands line by line.
+
+.SH DESCRIPTION
+The
+.B simple_shell
+program is a lightweight command-line interpreter that emulates the behavior of the standard UNIX shell (\fB/bin/sh\fR).
+
+It reads commands either from the standard input or from a file and executes them.
+The shell supports basic command execution, argument passing, and environment variable lookups.
+
+If run in interactive mode, it displays a prompt (\fB($)\fR) and waits for the user to type commands.
+In non-interactive mode, it reads and executes commands from standard input (for example, when piped from another command or file).
+
+The shell will:
+.IP \[bu]
+Display a prompt and wait for input (interactive mode)
+.IP \[bu]
+Read and execute commands line by line
+.IP \[bu]
+Search for executables in the directories listed in the PATH environment variable
+.IP \[bu]
+Execute programs using the \fBexecve()\fR system call
+.IP \[bu]
+Terminate when the user types \fBexit\fR or reaches end-of-file (Ctrl+D)
+
+.SH EXAMPLES
+Interactive mode:
+.PP
+.EX
+$ ./hsh
+($) /bin/ls
+hsh main.c shell.c
+($) exit
+.EE
+
+Non-interactive mode:
+.PP
+.EX
+$ echo "/bin/ls" | ./hsh
+hsh main.c shell.c
+.EE
+
+.SH RETURN VALUE
+The program returns the exit status of the last executed command.
+If no command is executed, it returns 0.
+
+.SH FILES
+.TP
+.I /bin/sh
+The standard UNIX shell used for comparison.
+.TP
+.I ./hsh
+The simple shell executable created by this project.
+
+.SH AUTHOR
+Written by [Your Full Name] <your_email@holbertonstudents.com>
+
+.SH SEE ALSO
+sh(1), bash(1), execve(2), fork(2), wait(2)
