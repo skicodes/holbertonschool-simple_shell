@@ -1,116 +1,92 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <ctype.h>
-#include <string.h>
 
+/**
+ * trim_spaces - remove leading and trailing spaces
+ * @str: string to trim
+ * Return: pointer to trimmed string
+ */
 char *trim_spaces(char *str)
 {
     char *end;
 
-    if (!str)
-        return NULL;
+    if (str == NULL)
+        return (NULL);
 
-    while (isspace((unsigned char)*str))  // remove leading spaces
+    while (isspace((unsigned char)*str))  /* remove leading spaces */
         str++;
 
-    if (*str == 0)  // if string is all spaces
-        return str;
+    if (*str == 0)  /* all spaces */
+        return (str);
 
     end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end))  // remove trailing spaces
+    while (end > str && isspace((unsigned char)*end))
         end--;
 
     *(end + 1) = '\0';
-    return str;
+    return (str);
 }
 
 /**
- * print_prompt - prints the shell prompt
- */
-void print_prompt(void)
-{
-	printf("#cisfun$ ");
-	fflush(stdout);
-}
-
-/**
- * execute_command - forks and executes a single-word command
- * @line: command line string
- * @envp: environment variables
- */
-void execute_command(char *line, char **envp)
-{
-	pid_t pid;
-	int status;
-	char *args[2]; /* argv for execve: command + NULL */
-
-	args[0] = line;
-	args[1] = NULL;
-
-	pid = fork();
-	if (pid == -1)
-	{
-		perror("shell");
-		return;
-	}
-	if (pid == 0)
-	{
-		execve(line, args, envp); /* pass args instead of NULL */
-		perror("shell");
-		_exit(1);
-	}
-	else
-	{
-		waitpid(pid, &status, 0);
-	}
-}
-
-/**
- * main - entry point for simple_shell 0.1
+ * main - simple shell 0.1
  * @argc: argument count
  * @argv: argument vector
  * @envp: environment variables
- *
  * Return: 0 on success
  */
 int main(int argc, char **argv, char **envp)
 {
-	char *line = NULL;
-	size_t len = 0;
-	ssize_t nread;
-
-	(void)argc;
-	(void)argv;
-
-	while (1)
-	int main(int argc, char **argv, char **envp)
-{
     char *line = NULL;
     size_t len = 0;
+    ssize_t nread;
+    pid_t pid;
+    int status;
+    char *cmd;
+
+    (void)argc;
+    (void)argv;
 
     while (1)
     {
-        printf("$ ");
-        fflush(stdout);
-
-        ssize_t read = getline(&line, &len, stdin);
-        if (read == -1)  // Ctrl+D
+        write(1, "($) ", 4);
+        nread = getline(&line, &len, stdin);
+        if (nread == -1)  /* handle EOF */
         {
-            printf("\n");
+            write(1, "\n", 1);
             break;
         }
 
-        line[read - 1] = '\0';  // remove newline
-        line = trim_spaces(line);  // remove leading/trailing spaces
+        line[nread - 1] = '\0';  /* remove newline */
+        cmd = trim_spaces(line);
 
-        if (line[0] == '\0')  // empty input, just spaces
+        if (cmd[0] == '\0')  /* empty line */
             continue;
 
-        execute_command(line, envp);  // call your execve wrapper
+        pid = fork();
+        if (pid == -1)
+        {
+            perror("fork");
+            continue;
+        }
+        if (pid == 0)  /* child process */
+        {
+            execve(cmd, NULL, envp);
+            /* if execve fails */
+            write(2, argv[0], strlen(argv[0]));
+            write(2, ": 1: ", 5);
+            write(2, cmd, strlen(cmd));
+            write(2, ": not found\n", 12);
+            exit(EXIT_FAILURE);
+        }
+        else  /* parent process */
+            waitpid(pid, &status, 0);
     }
 
     free(line);
-    return 0;
+    return (0);
 }
