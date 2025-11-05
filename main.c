@@ -2,6 +2,29 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <ctype.h>
+#include <string.h>
+
+char *trim_spaces(char *str)
+{
+    char *end;
+
+    if (!str)
+        return NULL;
+
+    while (isspace((unsigned char)*str))  // remove leading spaces
+        str++;
+
+    if (*str == 0)  // if string is all spaces
+        return str;
+
+    end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end))  // remove trailing spaces
+        end--;
+
+    *(end + 1) = '\0';
+    return str;
+}
 
 /**
  * print_prompt - prints the shell prompt
@@ -62,24 +85,32 @@ int main(int argc, char **argv, char **envp)
 	(void)argv;
 
 	while (1)
-	{
-		print_prompt();
-		nread = getline(&line, &len, stdin);
-		if (nread == -1) /* EOF (Ctrl+D) */
-		{
-			printf("\n");
-			break;
-		}
+	int main(int argc, char **argv, char **envp)
+{
+    char *line = NULL;
+    size_t len = 0;
 
-		if (line[nread - 1] == '\n')
-			line[nread - 1] = '\0';
+    while (1)
+    {
+        printf("$ ");
+        fflush(stdout);
 
-		if (line[0] == '\0')
-			continue;
+        ssize_t read = getline(&line, &len, stdin);
+        if (read == -1)  // Ctrl+D
+        {
+            printf("\n");
+            break;
+        }
 
-		execute_command(line, envp);
-	}
+        line[read - 1] = '\0';  // remove newline
+        line = trim_spaces(line);  // remove leading/trailing spaces
 
-	free(line);
-	return (0);
+        if (line[0] == '\0')  // empty input, just spaces
+            continue;
+
+        execute_command(line, envp);  // call your execve wrapper
+    }
+
+    free(line);
+    return 0;
 }
