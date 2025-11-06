@@ -49,13 +49,14 @@ int main(void)
 
         if (pid == 0)
         {
-            /* Child process: try to execute the command directly */
-            char *argv[] = {line, NULL};
-
-            if (execve(line, argv, environ) == -1)
-            {
-                perror("./shell");
-                exit(EXIT_FAILURE);
+            char *argv[2];
+	    argv[0] = line;
+	    argv[1] = NULL;
+	    
+	    if (execve(line, argv, environ) == -1)
+	    {
+		    perror("./shell");
+		    exit(EXIT_FAILURE);
             }
         }
         else
