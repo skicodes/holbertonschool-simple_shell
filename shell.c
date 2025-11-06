@@ -1,3 +1,6 @@
+#define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -8,6 +11,28 @@
 extern char **environ;
 
 #define PROMPT "#cisfun$ "
+#define MAX_ARGS 64
+
+/* Trim leading and trailing whitespace */
+char *trim_whitespace(char *str)
+{
+    char *end;
+
+    /* Trim leading space */
+    while (*str && (*str == ' ' || *str == '\t'))
+        str++;
+
+    if (*str == 0) /* All spaces */
+        return str;
+
+    /* Trim trailing space */
+    end = str + strlen(str) - 1;
+    while (end > str && (*end == ' ' || *end == '\t'))
+        end--;
+
+    *(end + 1) = '\0';
+    return str;
+}
 
 int main(void)
 {
@@ -33,8 +58,21 @@ int main(void)
         if (line[nread - 1] == '\n')
             line[nread - 1] = '\0';
 
-        if (line[0] == '\0')
+        /* Trim spaces */
+        line = trim_whitespace(line);
+        if (line[0] == '\0') /* Skip empty lines */
             continue;
+
+        /* Split command into argv */
+        char *argv[MAX_ARGS];
+        int argc = 0;
+        char *token = strtok(line, " \t");
+        while (token != NULL && argc < MAX_ARGS - 1)
+        {
+            argv[argc++] = token;
+            token = strtok(NULL, " \t");
+        }
+        argv[argc] = NULL;
 
         pid = fork();
         if (pid == -1)
@@ -45,11 +83,8 @@ int main(void)
 
         if (pid == 0)
         {
-            char *argv[2];
-            argv[0] = line;
-            argv[1] = NULL;
-
-            if (execve(line, argv, environ) == -1)
+            /* Child process */
+            if (execve(argv[0], argv, environ) == -1)
             {
                 perror("./shell");
                 exit(EXIT_FAILURE);
@@ -57,6 +92,7 @@ int main(void)
         }
         else
         {
+            /* Parent process */
             waitpid(pid, &status, 0);
         }
     }
