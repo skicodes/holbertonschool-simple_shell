@@ -10,11 +10,9 @@
 
 extern char **environ;
 
-#define PROMPT "#cisfun$ "
-#define MAX_LINE 1024  /* optional if you switch to fgets */
+char **parse_line(char *line);
+void free_tokens(char **tokens);
+char *find_path(char *command);
+int _strlen(const char *s);
 
-/* Function prototypes */
-ssize_t get_input(char **line, size_t *len);
-void execute_command(char *line);
-
-#endif /* SHELL_H */
+#endif
