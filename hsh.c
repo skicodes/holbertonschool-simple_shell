@@ -1,33 +1,38 @@
 #include "shell.h"
 
 static int run_command(char *prog_name, char **tokens, int cmd_no);
-static void shell_loop(char *prog_name);
+static int shell_loop(char *prog_name);
 
 /**
  * main - entry point of the shell
  * @ac: argument count
  * @av: argument vector
  *
- * Return: 0 on success
+ * Return: exit status of last command
  */
 int main(int ac, char **av)
 {
+	int status;
+
 	(void)ac;
-	shell_loop(av[0]);
-	return (0);
+	status = shell_loop(av[0]);
+	return (status);
 }
 
 /**
  * shell_loop - main read/execute loop of the shell
  * @prog_name: name of the shell program (argv[0])
+ *
+ * Return: exit status of last executed command
  */
-static void shell_loop(char *prog_name)
+static int shell_loop(char *prog_name)
 {
 	char *line = NULL;
 	size_t len = 0;
 	ssize_t nread;
 	char **tokens;
 	int cmd_no = 0;
+	int last_status = 0;
 
 	while (1)
 	{
@@ -38,7 +43,6 @@ static void shell_loop(char *prog_name)
 		if (nread == -1)
 			break;
 
-		/* remove trailing newline */
 		if (nread > 1 && line[nread - 1] == '\n')
 			line[nread - 1] = '\0';
 
@@ -50,10 +54,11 @@ static void shell_loop(char *prog_name)
 		}
 
 		cmd_no++;
-		run_command(prog_name, tokens, cmd_no);
+		last_status = run_command(prog_name, tokens, cmd_no);
 	}
 
 	free(line);
+	return (last_status);
 }
 
 /**
@@ -62,7 +67,7 @@ static void shell_loop(char *prog_name)
  * @tokens: NULL-terminated array of arguments
  * @cmd_no: command number (for error messages)
  *
- * Return: 0 on success, -1 on error
+ * Return: exit status code (127 when not found)
  */
 static int run_command(char *prog_name, char **tokens, int cmd_no)
 {
@@ -71,7 +76,6 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 	pid_t pid;
 	int status;
 
-	/* If command contains '/', try it directly */
 	if (strchr(tokens[0], '/') != NULL)
 	{
 		if (access(tokens[0], X_OK) == 0)
@@ -79,19 +83,17 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 	}
 	else
 	{
-		/* Otherwise, search in PATH */
 		cmd_path = find_path(tokens[0]);
 		if (cmd_path != NULL)
 			need_free = 1;
 	}
 
-	/* If no path found -> do NOT fork, just print not found */
 	if (cmd_path == NULL)
 	{
 		fprintf(stderr, "%s: %d: %s: not found\n",
 			prog_name, cmd_no, tokens[0]);
 		free_tokens(tokens);
-		return (-1);
+		return (127);
 	}
 
 	pid = fork();
@@ -101,12 +103,11 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 		if (need_free)
 			free(cmd_path);
 		free_tokens(tokens);
-		return (-1);
+		return (1);
 	}
 
 	if (pid == 0)
 	{
-		/* Child: execute */
 		if (execve(cmd_path, tokens, environ) == -1)
 			perror(prog_name);
 		if (need_free)
@@ -115,12 +116,15 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 		exit(127);
 	}
 
-	/* Parent: wait and clean up */
 	waitpid(pid, &status, 0);
+
 	if (need_free)
 		free(cmd_path);
 	free_tokens(tokens);
 
-	return (0);
+	if (WIFEXITED(status))
+		return (WEXITSTATUS(status));
+
+	return (1);
 }
 
