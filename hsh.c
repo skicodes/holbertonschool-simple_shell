@@ -1,124 +1,126 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <errno.h>
+#include "shell.h"
 
-extern char **environ;
+static int run_command(char *prog_name, char **tokens, int cmd_no);
+static void shell_loop(char *prog_name);
 
-#define PROMPT "$ "
-#define MAX_ARGS 64
-
-/* trim leading and trailing whitespace in-place */
-static char *trim_whitespace(char *s)
+/**
+ * main - entry point of the shell
+ * @ac: argument count
+ * @av: argument vector
+ *
+ * Return: 0 on success
+ */
+int main(int ac, char **av)
 {
-    char *end;
-
-    if (s == NULL)
-        return NULL;
-
-    /* trim leading */
-    while (*s == ' ' || *s == '\t' || *s == '\n')
-        s++;
-
-    if (*s == '\0') /* empty */
-        return s;
-
-    /* trim trailing */
-    end = s + strlen(s) - 1;
-    while (end > s && (*end == ' ' || *end == '\t' || *end == '\n'))
-    {
-        *end = '\0';
-        end--;
-    }
-    return s;
+	(void)ac;
+	shell_loop(av[0]);
+	return (0);
 }
 
-int main(void)
+/**
+ * shell_loop - main read/execute loop of the shell
+ * @prog_name: name of the shell program (argv[0])
+ */
+static void shell_loop(char *prog_name)
 {
-    char *line = NULL;
-    size_t linecap = 0;
-    ssize_t linelen;
-    char *argv_exec[MAX_ARGS];
-    pid_t child;
-    int status;
-    int i;
-    char *token;
-    char *cmd;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+	char **tokens;
+	int cmd_no = 0;
 
-    while (1)
-    {
-        /* print prompt only if interactive */
-        if (isatty(STDIN_FILENO))
-        {
-            if (write(STDOUT_FILENO, PROMPT, strlen(PROMPT)) == -1)
-            {
-                /* non-fatal, continue */
-            }
-        }
+	while (1)
+	{
+		if (isatty(STDIN_FILENO))
+			write(STDOUT_FILENO, "$ ", 2);
 
-        linelen = getline(&line, &linecap, stdin);
-        if (linelen == -1) /* EOF or error */
-        {
-            if (isatty(STDIN_FILENO))
-                write(STDOUT_FILENO, "\n", 1);
-            break;
-        }
+		nread = getline(&line, &len, stdin);
+		if (nread == -1)
+			break;
 
-        /* remove newline if present */
-        if (linelen > 0 && line[linelen - 1] == '\n')
-            line[linelen - 1] = '\0';
+		/* remove trailing newline */
+		if (nread > 1 && line[nread - 1] == '\n')
+			line[nread - 1] = '\0';
 
-        /* trim whitespace */
-        cmd = trim_whitespace(line);
+		tokens = parse_line(line);
+		if (tokens == NULL || tokens[0] == NULL)
+		{
+			free_tokens(tokens);
+			continue;
+		}
 
-        /* ignore empty input */
-        if (cmd == NULL || *cmd == '\0')
-            continue;
+		cmd_no++;
+		run_command(prog_name, tokens, cmd_no);
+	}
 
-        /* handle built-in exit */
-        if (strcmp(cmd, "exit") == 0)
-            break;
-
-        /* tokenize into argv_exec (command + arguments) */
-        i = 0;
-        token = strtok(cmd, " \t");
-        while (token != NULL && i < (MAX_ARGS - 1))
-        {
-            argv_exec[i++] = token;
-            token = strtok(NULL, " \t");
-        }
-        argv_exec[i] = NULL;
-
-        if (argv_exec[0] == NULL)
-            continue;
-
-        child = fork();
-        if (child == -1)
-        {
-            perror("fork");
-            continue;
-        }
-
-        if (child == 0) /* child */
-        {
-            /* execute the command: pass environ so execve has the env */
-            if (execve(argv_exec[0], argv_exec, environ) == -1)
-            {
-                /* print error like: ./hbtn_ls: No such file or directory */
-                dprintf(STDERR_FILENO, "%s: %s\n", argv_exec[0], strerror(errno));
-                _exit(EXIT_FAILURE);
-            }
-        }
-        else /* parent */
-        {
-            if (waitpid(child, &status, 0) == -1)
-                perror("waitpid");
-        }
-    }
-
-    free(line);
-    return 0;
+	free(line);
 }
+
+/**
+ * run_command - resolves command (PATH/full path) and runs it
+ * @prog_name: name of the shell program (argv[0])
+ * @tokens: NULL-terminated array of arguments
+ * @cmd_no: command number (for error messages)
+ *
+ * Return: 0 on success, -1 on error
+ */
+static int run_command(char *prog_name, char **tokens, int cmd_no)
+{
+	char *cmd_path = NULL;
+	int need_free = 0;
+	pid_t pid;
+	int status;
+
+	/* If command contains '/', try it directly */
+	if (strchr(tokens[0], '/') != NULL)
+	{
+		if (access(tokens[0], X_OK) == 0)
+			cmd_path = tokens[0];
+	}
+	else
+	{
+		/* Otherwise, search in PATH */
+		cmd_path = find_path(tokens[0]);
+		if (cmd_path != NULL)
+			need_free = 1;
+	}
+
+	/* If no path found -> do NOT fork, just print not found */
+	if (cmd_path == NULL)
+	{
+		fprintf(stderr, "%s: %d: %s: not found\n",
+			prog_name, cmd_no, tokens[0]);
+		free_tokens(tokens);
+		return (-1);
+	}
+
+	pid = fork();
+	if (pid == -1)
+	{
+		perror("fork");
+		if (need_free)
+			free(cmd_path);
+		free_tokens(tokens);
+		return (-1);
+	}
+
+	if (pid == 0)
+	{
+		/* Child: execute */
+		if (execve(cmd_path, tokens, environ) == -1)
+			perror(prog_name);
+		if (need_free)
+			free(cmd_path);
+		free_tokens(tokens);
+		exit(127);
+	}
+
+	/* Parent: wait and clean up */
+	waitpid(pid, &status, 0);
+	if (need_free)
+		free(cmd_path);
+	free_tokens(tokens);
+
+	return (0);
+}
+
