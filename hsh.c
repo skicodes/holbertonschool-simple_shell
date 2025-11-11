@@ -53,6 +53,13 @@ static int shell_loop(char *prog_name)
 			continue;
 		}
 
+		/* built-in: exit */
+		if (strcmp(tokens[0], "exit") == 0)
+		{
+			free_tokens(tokens);
+			break;
+		}
+
 		cmd_no++;
 		last_status = run_command(prog_name, tokens, cmd_no);
 	}
