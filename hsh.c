@@ -33,6 +33,7 @@ static int shell_loop(char *prog_name)
 	char **tokens;
 	int cmd_no = 0;
 	int last_status = 0;
+	int i;
 
 	while (1)
 	{
@@ -58,6 +59,15 @@ static int shell_loop(char *prog_name)
 		{
 			free_tokens(tokens);
 			break;
+		}
+
+		/* built-in: env */
+		if (strcmp(tokens[0], "env") == 0)
+		{
+			for (i = 0; environ[i]; i++)
+				printf("%s\n", environ[i]);
+			free_tokens(tokens);
+			continue;
 		}
 
 		cmd_no++;
@@ -97,41 +107,5 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 
 	if (cmd_path == NULL)
 	{
-		fprintf(stderr, "%s: %d: %s: not found\n",
-			prog_name, cmd_no, tokens[0]);
-		free_tokens(tokens);
-		return (127);
-	}
-
-	pid = fork();
-	if (pid == -1)
-	{
-		perror("fork");
-		if (need_free)
-			free(cmd_path);
-		free_tokens(tokens);
-		return (1);
-	}
-
-	if (pid == 0)
-	{
-		if (execve(cmd_path, tokens, environ) == -1)
-			perror(prog_name);
-		if (need_free)
-			free(cmd_path);
-		free_tokens(tokens);
-		exit(127);
-	}
-
-	waitpid(pid, &status, 0);
-
-	if (need_free)
-		free(cmd_path);
-	free_tokens(tokens);
-
-	if (WIFEXITED(status))
-		return (WEXITSTATUS(status));
-
-	return (1);
-}
+		fprintf(stde
 
