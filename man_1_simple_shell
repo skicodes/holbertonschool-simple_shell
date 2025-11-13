@@ -61,7 +61,7 @@ The standard UNIX shell used for comparison.
 The simple shell executable created by this project.
 
 .SH AUTHOR
-Written by [Your Full Name] <your_email@holbertonstudents.com>
+Written by [Sarah & Noura]
 
 .SH SEE ALSO
 sh(1), bash(1), execve(2), fork(2), wait(2)
