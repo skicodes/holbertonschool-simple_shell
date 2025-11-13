@@ -14,5 +14,6 @@ char **parse_line(char *line);
 void free_tokens(char **tokens);
 char *find_path(char *command);
 int _strlen(const char *s);
+int _strlen(const char *s);
 
 #endif
