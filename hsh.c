@@ -145,3 +145,4 @@ static int run_command(char *prog_name, char **tokens, int cmd_no)
 	return (1);
 }
 
+.
