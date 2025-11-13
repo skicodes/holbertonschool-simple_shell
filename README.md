@@ -25,7 +25,7 @@ It is part of the Holberton School low-level programming curriculum.
 
 ## Compilation
 
-Compile all `.c` files with the following command:
+Compile all `.c` files with the following command
 
 ```bash
 gcc -Wall -Werror -Wextra -pedantic -std=gnu89 *.c -o hsh
